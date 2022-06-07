@@ -51,6 +51,7 @@ defmodule SimpleClient.OutgoingEventPoller do
 
         event ->
           ack_key = {event.event_type_id, event.key, event.offset}
+
           :ok = Connection.Client.publish(event, ack_key)
           :sending
       end

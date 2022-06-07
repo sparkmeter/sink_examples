@@ -28,4 +28,8 @@ defmodule SimpleClient.GroundEventLog do
     |> cast(attrs, @fields)
     |> validate_required(@fields)
   end
+
+  def to_sink_event(event) do
+    struct(Sink.Event, Map.from_struct(event))
+  end
 end

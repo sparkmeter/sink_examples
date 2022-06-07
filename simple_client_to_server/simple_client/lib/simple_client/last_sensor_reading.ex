@@ -4,7 +4,6 @@ defmodule SimpleClient.LastSensorReading do
   """
   use Ecto.Schema
   import Ecto.Changeset
-  alias SimpleClient.LastSensorReading
 
   @fields [
     :temperature,

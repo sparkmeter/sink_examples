@@ -51,13 +51,15 @@ defmodule SimpleClient do
     Repo.all(query)
     |> case do
       [] -> nil
-      [event] -> event
+      [event] -> GroundEventLog.to_sink_event(event)
     end
   end
 
-  def ack_event(id) do
-    ack = %AckLog{id: id}
-    Repo.insert(ack)
+  def ack_event({event_type_id, key, offset}) do
+    case Repo.get_by(GroundEventLog, event_type_id: event_type_id, key: key, offset: offset) do
+      nil -> {:error, :no_event}
+      event -> %AckLog{id: event.id} |> Repo.insert()
+    end
   end
 
   defp log_ground_event(sink_event) do
