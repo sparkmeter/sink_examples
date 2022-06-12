@@ -36,16 +36,12 @@ defmodule SimpleClient do
     end
   end
 
+  def queue_size do
+    Repo.aggregate(gel_query(), :count)
+  end
+
   def get_next_event() do
-    query =
-      from(gel in GroundEventLog,
-        left_join: al in AckLog,
-        on: gel.id == al.id,
-        where: is_nil(al.id),
-        #          where: u.age > 18,
-        order_by: [asc: :id],
-        limit: 1
-      )
+    query = from(q in gel_query(), limit: 1)
 
     # order by
     Repo.all(query)
@@ -65,5 +61,14 @@ defmodule SimpleClient do
   defp log_ground_event(sink_event) do
     ground_event_log = struct(GroundEventLog, Map.from_struct(sink_event))
     Repo.insert(ground_event_log)
+  end
+
+  defp gel_query do
+    from(gel in GroundEventLog,
+      left_join: al in AckLog,
+      on: gel.id == al.id,
+      where: is_nil(al.id),
+      order_by: [asc: :id]
+    )
   end
 end

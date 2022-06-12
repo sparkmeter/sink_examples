@@ -1,18 +1,17 @@
 defmodule SimpleServer do
-  @moduledoc """
-  Documentation for `SimpleServer`.
-  """
+  @moduledoc false
+  def load_authenticated_clients do
+    [
+      {"priv/certs/sink-examples-simple-client-cert.pem", "example-client"}
+    ]
+    |> Enum.map(fn {cert_path, client_id} ->
+      [{:Certificate, cert, _}] =
+        cert_path
+        |> File.read!()
+        |> :public_key.pem_decode()
 
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> SimpleServer.hello()
-      :world
-
-  """
-  def hello do
-    :world
+      {cert, client_id}
+    end)
+    |> Map.new()
   end
 end

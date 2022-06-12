@@ -5,6 +5,8 @@ defmodule SimpleServer.SinkHandler do
   require Logger
   @behaviour Sink.Connection.ServerConnectionHandler
 
+  @authenticated_clients SimpleServer.load_authenticated_clients()
+
   @impl true
   def up(client_id) do
     Logger.info("Connected to client #{client_id} via Sink")
@@ -21,12 +23,18 @@ defmodule SimpleServer.SinkHandler do
 
   @impl true
   def authenticate_client(cert) do
-    {:ok, "fake"}
+    case @authenticated_clients[cert] do
+      nil ->
+        {:error, "Unknown client"}
+
+      client_id ->
+        {:ok, client_id}
+    end
   end
 
   @impl true
   def handle_publish(client_id, sink_event, _message_id) do
-    Logger.info("received an event from client #{client_id}, #{inspect(sink_event)}")
+    Logger.info("received an event from client #{client_id}, #{inspect_event(sink_event)}")
 
     :ack
   end
@@ -50,9 +58,8 @@ defmodule SimpleServer.SinkHandler do
     :ok
   end
 
-  defp authenticated_clients do
-    %{
-      "todo: insert cert here" => "simple_client_1"
-    }
+  defp inspect_event(%Sink.Event{event_type_id: 1, schema_version: 1} = sink_event) do
+    data = :erlang.binary_to_term(sink_event.event_data)
+    "sensor: #{sink_event.key}, timestamp: #{sink_event.timestamp}, data: #{inspect(data)}"
   end
 end

@@ -23,8 +23,9 @@ defmodule SimpleClientTest do
     assert 3 == length(events)
   end
 
-  describe "get_next_queued_event" do
+  describe "queue" do
     test "is empty with no events" do
+      assert 0 == SimpleClient.queue_size()
       assert nil == SimpleClient.get_next_event()
     end
 
@@ -33,6 +34,7 @@ defmodule SimpleClientTest do
       SimpleClient.log_sensor_reading("kitchen", %{temperature: 71, humidity: 41})
 
       next_event = SimpleClient.get_next_event()
+      assert 2 == SimpleClient.queue_size()
       assert nil != next_event
       assert "kitchen" == next_event.key
       assert 1 == next_event.offset
@@ -43,6 +45,7 @@ defmodule SimpleClientTest do
       next = SimpleClient.get_next_event()
       {:ok, _} = SimpleClient.ack_event({next.event_type_id, next.key, next.offset})
 
+      assert 0 == SimpleClient.queue_size()
       assert nil == SimpleClient.get_next_event()
     end
   end
