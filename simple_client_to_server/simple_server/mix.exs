@@ -22,7 +22,7 @@ defmodule SimpleServer.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:sink, path: "../../../sink"}
+      {:sink, github: "sparkmeter/sink"}
     ]
   end
 end
