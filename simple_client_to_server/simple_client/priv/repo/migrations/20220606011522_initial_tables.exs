@@ -24,5 +24,12 @@ defmodule SimpleClient.Repo.Migrations.InitialTables do
     create table(:ack_logs, primary_key: true) do
       timestamps(updated_at: false)
     end
+
+    create table(:sink_instance_ids) do
+      add(:client_instance_id, :integer, null: false)
+      add(:server_instance_id, :integer, null: true)
+
+      timestamps(type: :utc_datetime_usec)
+    end
   end
 end

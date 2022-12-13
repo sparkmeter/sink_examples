@@ -3,20 +3,7 @@ defmodule SimpleClient.Application do
 
   use Application
 
-  alias SimpleClient.{Repo, OutgoingEventPoller, SinkHandler}
-
-  @sink_port 2020
-  @sink_host "localhost"
-  # this is for example purposes only, do something more secure with your setup
-  @sink_ssl_opts [
-    certfile: "priv/certs/sink-examples-simple-client-cert.pem",
-    keyfile: "priv/certs/sink-examples-simple-client-key.pem",
-    cacertfile: "priv/certs/sink-examples-ca-cert.pem",
-    secure_renegotiate: true,
-    reuse_sessions: true,
-    verify: :verify_peer,
-    fail_if_no_peer_cert: true
-  ]
+  alias SimpleClient.{Repo, OutgoingEventPoller, SinkConfig, SinkHandler}
 
   @impl Application
   def start(_type, _args) do
@@ -40,7 +27,10 @@ defmodule SimpleClient.Application do
   defp sink_client(_) do
     [
       {Sink.Connection.Client,
-       port: @sink_port, host: @sink_host, ssl_opts: @sink_ssl_opts, handler: SinkHandler}
+       port: SinkConfig.port(),
+       host: SinkConfig.host(),
+       ssl_opts: SinkConfig.ssl_opts(),
+       handler: SinkHandler}
     ]
   end
 end
