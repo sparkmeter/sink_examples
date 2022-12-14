@@ -3,13 +3,40 @@ defmodule SimpleServer.SinkHandler do
   Handle events that come across the connection
   """
   require Logger
+  alias SimpleServer.SinkConfig
   @behaviour Sink.Connection.ServerConnectionHandler
 
   @authenticated_clients SimpleServer.load_authenticated_clients()
 
   @impl true
-  def up(client_id) do
-    Logger.info("Connected to client #{client_id} via Sink")
+  def supported_application_version?(_client_id, _version) do
+    # here is where you would specify which application versions are acceptable
+    true
+  end
+
+  @impl true
+  def client_configuration(client_id) do
+    SinkConfig.client_configuration(client_id)
+  end
+
+  @impl true
+  def handle_connection_response(client_id, :connected) do
+    Logger.info("Connected to known client #{client_id} via Sink")
+
+    :ok
+  end
+
+  def handle_connection_response(client_id, {:hello_new_client, client_instance_id}) do
+    Logger.info("Connected to new client #{client_id} via Sink")
+    {:ok, _} = SinkConfig.set_client_instance_id(client_id, client_instance_id)
+
+    :ok
+  end
+
+  def handle_connection_response(client_id, response) do
+    Logger.debug(
+      "Server rejected connection request with #{inspect(response)} for client #{client_id}"
+    )
 
     :ok
   end

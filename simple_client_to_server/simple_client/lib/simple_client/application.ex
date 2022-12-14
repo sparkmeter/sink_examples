@@ -18,6 +18,9 @@ defmodule SimpleClient.Application do
     result =
       Supervisor.start_link(children, strategy: :one_for_one, name: SimpleClient.Supervisor)
 
+    # note: this is bad practice since it could stop your startup
+    :ok = SinkConfig.init_client_instance_id()
+
     result
   end
 

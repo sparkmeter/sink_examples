@@ -28,9 +28,7 @@ defmodule SimpleClient.SinkConfig do
   @doc """
   Generate an instance ID and save it to the database.
   """
-  def init_client_instance_id() do
-    client_instance_id = System.os_time(:second)
-
+  def init_client_instance_id(client_instance_id \\ System.os_time(:second)) do
     {:ok, _} =
       %SinkInstanceId{id: @instance_id_primary_key}
       |> SinkInstanceId.changeset(%{client_instance_id: client_instance_id})
@@ -53,13 +51,16 @@ defmodule SimpleClient.SinkConfig do
   Set the server instance ID.
   """
   def set_server_instance_id(server_instance_id) do
-    SinkInstanceId
-    |> Repo.get(@instance_id_primary_key)
-    |> case do
-      %SinkInstanceId{} = instance ->
-        instance
-        |> SinkInstanceId.changeset(%{server_instance_id: server_instance_id})
-        |> Repo.update()
-    end
+    {:ok, _} =
+      SinkInstanceId
+      |> Repo.get(@instance_id_primary_key)
+      |> case do
+        %SinkInstanceId{} = instance ->
+          instance
+          |> SinkInstanceId.changeset(%{server_instance_id: server_instance_id})
+          |> Repo.update()
+      end
+
+    :ok
   end
 end

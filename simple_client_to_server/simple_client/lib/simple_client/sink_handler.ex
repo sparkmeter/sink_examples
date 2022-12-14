@@ -42,6 +42,7 @@ defmodule SimpleClient.SinkHandler do
   @impl true
   def instance_ids do
     SinkConfig.get_instance_ids()
+    |> IO.inspect()
   end
 
   @impl true

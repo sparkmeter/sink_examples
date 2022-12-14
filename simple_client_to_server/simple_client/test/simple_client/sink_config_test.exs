@@ -12,16 +12,16 @@ defmodule SimpleClient.SinkConfigTest do
   end
 
   test "init_client_instance_id" do
-    SinkConfig.init_client_instance_id()
-    assert %{client: _client_id, server: nil} = SinkConfig.get_instance_ids()
+    SinkConfig.init_client_instance_id(123)
+    assert %{client: 123, server: nil} = SinkConfig.get_instance_ids()
   end
 
   test "update_instance_id" do
     # todo: move setup to factory?
-    SinkConfig.init_client_instance_id()
+    SinkConfig.init_client_instance_id(123)
 
-    SinkConfig.set_server_instance_id(12345)
+    SinkConfig.set_server_instance_id(456)
 
-    assert %{client: _client_id, server: 12345} = SinkConfig.get_instance_ids()
+    assert %{client: 123, server: 456} = SinkConfig.get_instance_ids()
   end
 end
