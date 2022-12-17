@@ -22,6 +22,8 @@ defmodule SimpleServer.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:ecto_sql, "~> 3.6"},
+      {:postgrex, ">= 0.0.0"},
       {:sink, github: "sparkmeter/sink"}
     ]
   end

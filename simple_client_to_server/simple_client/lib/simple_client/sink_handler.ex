@@ -1,14 +1,35 @@
 defmodule SimpleClient.SinkHandler do
   @moduledoc """
-  Handle events that come across the connection
+  Hooks to handle connection setup events that come across the connection.
+
+  For connection setup, Sink needs to know the instance_id of the client and if a
+  server instance_id has been set. After a connection is established, a connection
+  response of `:connected` will be received.
+
+  During normal connection a client may receieve a publish event from the server or
+  an ack or a nack for a publish the client sent to the server.
   """
   require Logger
   use Ecto.Schema
+  alias SimpleClient.SinkConfig
   @behaviour Sink.Connection.ClientConnectionHandler
 
   @impl true
-  def up do
-    Logger.info("Connected to server via Sink")
+  def handle_connection_response(:connected) do
+    Logger.info("Connected to known server via Sink")
+
+    :ok
+  end
+
+  @impl true
+  def handle_connection_response({:hello_new_client, instance_id}) do
+    Logger.info("Connected to server via Sink for the first time")
+
+    SinkConfig.set_server_instance_id(instance_id)
+  end
+
+  def handle_connection_response(response) do
+    Logger.info("Failed to connect with with #{inspect(response)}")
 
     :ok
   end
@@ -18,6 +39,16 @@ defmodule SimpleClient.SinkHandler do
     Logger.info("Disconnected from server via Sink")
 
     :ok
+  end
+
+  @impl true
+  def application_version do
+    Application.spec(:simple_client, :vsn) |> to_string()
+  end
+
+  @impl true
+  def instance_ids do
+    SinkConfig.get_instance_ids()
   end
 
   @impl true
