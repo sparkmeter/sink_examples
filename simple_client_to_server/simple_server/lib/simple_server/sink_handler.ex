@@ -10,7 +10,7 @@ defmodule SimpleServer.SinkHandler do
 
   @impl true
   def supported_application_version?(_client_id, _version) do
-    # here is where you would specify which application versions are acceptable
+    # here is where you would check which application versions are supported
     true
   end
 
@@ -21,6 +21,7 @@ defmodule SimpleServer.SinkHandler do
 
   @impl true
   def handle_connection_response(client_id, :connected) do
+    IO.puts("connection resp")
     Logger.info("Connected to known client #{client_id} via Sink")
 
     :ok
