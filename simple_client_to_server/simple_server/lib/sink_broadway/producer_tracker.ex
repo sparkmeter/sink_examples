@@ -16,7 +16,7 @@ defmodule SinkBroadway.ProducerTracker do
   alias Phoenix.PubSub
 
   @ingested_at_table_name :ground_event_log_ingested_at
-  # @ground_event_log_producer_offsets_table_name :ground_event_log_producer_offsets
+  @ground_event_log_producer_offsets_table_name :ground_event_log_producer_offsets
 
   defmodule State do
     @moduledoc false
@@ -56,9 +56,25 @@ defmodule SinkBroadway.ProducerTracker do
 
   This would be used to see if more events need to be processed
   """
-  def max_ingested_at(key) do
-    case :ets.lookup(@ingested_at_table_name, key) do
+  def max_ingested_at(client) do
+    case :ets.lookup(@ingested_at_table_name, client) do
       [{_, ingested_at}] -> ingested_at
+      [] -> nil
+    end
+  end
+
+  @doc """
+  Return the maximum offset value for a client.
+
+  This would be used to see how far behind we are and decided skip processing this event
+  or fast forward to the most recent event.
+  """
+  def max_offset(client, {event_type_id, event_key}) do
+    case :ets.lookup(
+           @ground_event_log_producer_offsets_table_name,
+           {client, event_type_id, event_key}
+         ) do
+      [{_, max_offset}] -> max_offset
       [] -> nil
     end
   end
@@ -71,6 +87,7 @@ defmodule SinkBroadway.ProducerTracker do
   @impl true
   def handle_call({:add_client, client}, _from, state) do
     # subscribe to pub sub
+    # do we want to segment this by event_type_id?
     :ok = PubSub.subscribe(:sink_events, topic(client))
 
     # load current state from db and populate ets table
@@ -83,11 +100,11 @@ defmodule SinkBroadway.ProducerTracker do
   def handle_info({:publish, client, sink_event, ingested_at}, state) do
     # update the maximum ingested_at for the client and the max offset for the topic
     # todo: check that the ingested_at is greater than the current value
-    :ok = :ets.insert(state.ingested_at_table, {client, ingested_at})
+    true = :ets.insert(state.ingested_at_table, {client, ingested_at})
 
     # todo: check that the offset is greater than the current value
     table_key = {client, sink_event.event_type_id, sink_event.key}
-    :ok = :ets.insert(state.events_table, {table_key, sink_event.offset})
+    true = :ets.insert(state.events_table, {table_key, sink_event.offset})
 
     {:noreply, state}
   end

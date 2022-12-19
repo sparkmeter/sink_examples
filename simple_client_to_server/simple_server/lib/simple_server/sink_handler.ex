@@ -72,12 +72,6 @@ defmodule SimpleServer.SinkHandler do
 
     Phoenix.PubSub.broadcast(
       :sink_events,
-      "#{client_id}-#{instance_id}:#{sink_event.event_type_id}",
-      {:publish, {client_id, instance_id}, sink_event, ingested_at}
-    )
-
-    Phoenix.PubSub.broadcast(
-      :sink_events,
       ProducerTracker.topic(client),
       {:publish, {client_id, instance_id}, sink_event, ingested_at}
     )

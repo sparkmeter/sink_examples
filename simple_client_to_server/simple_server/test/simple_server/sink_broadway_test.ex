@@ -31,6 +31,9 @@ defmodule SimpleServer.SinkBroadwayTest do
     :timer.sleep(10)
     assert nil != ProducerTracker.max_ingested_at(client)
 
+    assert nil !=
+             ProducerTracker.max_offset(client, {@sample_event.event_type_id, @sample_event.key})
+
     # todo: assert the event was processed
 
     assert true
