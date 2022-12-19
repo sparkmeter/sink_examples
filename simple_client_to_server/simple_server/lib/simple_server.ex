@@ -14,4 +14,19 @@ defmodule SimpleServer do
     end)
     |> Map.new()
   end
+
+  def insert_ground_event({client_id, instance_id}, sink_event, ingested_at) do
+    %SimpleServer.Ground.GroundEventLog{
+      client_id: client_id,
+      instance_id: instance_id,
+      ingested_at: ingested_at,
+      key: sink_event.key,
+      event_type_id: sink_event.event_type_id,
+      offset: sink_event.offset,
+      event_timestamp: sink_event.timestamp,
+      schema_version: sink_event.schema_version,
+      event_data: sink_event.event_data
+    }
+    |> SimpleServer.Repo.insert()
+  end
 end
