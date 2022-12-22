@@ -70,10 +70,13 @@ defmodule SimpleServer.SinkHandler do
     client = {client_id, instance_id}
     {:ok, _} = SimpleServer.insert_ground_event(client, sink_event, ingested_at)
 
+    # todo: move this to a module or something somewhere
+    topic = "#{client_id}:#{sink_event.event_type_id}:" <> sink_event.key
+
     Phoenix.PubSub.broadcast(
       :sink_events,
-      ProducerTracker.topic(client),
-      {:publish, {client_id, instance_id}, sink_event, ingested_at}
+      topic,
+      {:publish, client_id, sink_event, ingested_at}
     )
 
     :ack

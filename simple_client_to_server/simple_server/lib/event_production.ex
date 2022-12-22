@@ -20,4 +20,8 @@ defmodule SinkBroadway do
     - takes batches and processes them
     - acks / nacks when done
   """
+
+  def add_client({client_id, client_instance_id}) do
+    GenServer.call(SinkBroadway.Coordinator, {:add_client, {client_id, client_instance_id}})
+  end
 end
