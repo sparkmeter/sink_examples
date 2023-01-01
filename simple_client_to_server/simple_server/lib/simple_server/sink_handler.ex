@@ -4,7 +4,6 @@ defmodule SimpleServer.SinkHandler do
   """
   require Logger
   alias SimpleServer.SinkConfig
-  alias SinkBroadway.ProducerTracker
   @behaviour Sink.Connection.ServerConnectionHandler
 
   @authenticated_clients SimpleServer.load_authenticated_clients()
@@ -66,18 +65,12 @@ defmodule SimpleServer.SinkHandler do
     Logger.info("received an event from client #{client_id}, #{inspect_event(sink_event)}")
 
     ingested_at = DateTime.utc_now()
+    sequence_number = DateTime.to_unix(ingested_at)
     instance_id = get_instance_id(client_id)
     client = {client_id, instance_id}
     {:ok, _} = SimpleServer.insert_ground_event(client, sink_event, ingested_at)
 
-    # todo: move this to a module or something somewhere
-    topic = "#{client_id}:#{sink_event.event_type_id}:" <> sink_event.key
-
-    Phoenix.PubSub.broadcast(
-      :sink_events,
-      topic,
-      {:publish, client_id, sink_event, ingested_at}
-    )
+    :ok = EventProduction.broadcast(client_id, sink_event, sequence_number)
 
     :ack
   end
