@@ -12,8 +12,7 @@ defmodule SimpleServer.Application do
     children =
       [
         Repo,
-        {Phoenix.PubSub, name: :sink_events},
-        {EventProduction.Supervisor, storage: SimpleServer.SinkEventStorage}
+        {Phoenix.PubSub, name: :sink_events}
       ] ++ sink_server(env)
 
     opts = [strategy: :one_for_one, name: SimpleServer.Supervisor]
@@ -29,6 +28,7 @@ defmodule SimpleServer.Application do
 
   defp sink_server(_) do
     [
+      {EventProduction.Supervisor, storage: SimpleServer.SinkEventStorage},
       {Sink.Connection.ServerListener,
        port: SinkConfig.port(), ssl_opts: SinkConfig.ssl_opts(), handler: SinkHandler}
     ]

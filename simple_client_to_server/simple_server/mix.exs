@@ -5,10 +5,11 @@ defmodule SimpleServer.MixProject do
     [
       aliases: ["ecto.reset": ["ecto.drop", "ecto.create", "ecto.migrate"]],
       app: :simple_server,
-      version: "0.1.0",
+      deps: deps(),
       elixir: "~> 1.12",
+      elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      version: "0.1.0"
     ]
   end
 
@@ -30,4 +31,8 @@ defmodule SimpleServer.MixProject do
       {:sink, github: "sparkmeter/sink"}
     ]
   end
+
+  # Specifies which paths to compile per environment.
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 end

@@ -1,5 +1,5 @@
 defmodule SimpleServer.EventProductionTest do
-  use ExUnit.Case, async: false
+  use SimpleServer.DataCase, async: false
   alias SimpleServer.SinkConfig
   doctest SimpleServer
 
@@ -19,6 +19,13 @@ defmodule SimpleServer.EventProductionTest do
       })
   }
   @ingested_at 1_672_606_432
+
+  setup do
+    {:ok, _} =
+      start_supervised({EventProduction.Supervisor, storage: SimpleServer.SinkEventStorage})
+
+    :ok
+  end
 
   test "a received event is tracked by the CacheManager" do
     SinkConfig.set_client_instance_id(@client_id, @client_instance_id)
