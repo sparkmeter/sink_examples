@@ -25,10 +25,11 @@ defmodule EventProduction do
   Maybe move to a separate module
   """
   def topic(client_id) do
-    topic = "client_id:#{client_id}"
+    "client_id:#{client_id}"
   end
 
   defdelegate add_client(client_id, client_instance_id), to: Coordinator
   defdelegate max_sequence_number(client_id), to: CacheManager
   defdelegate max_offset(client_id, topic), to: CacheManager
+  defdelegate get_event(client_id, topic, offset), to: CacheManager
 end

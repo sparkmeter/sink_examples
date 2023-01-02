@@ -64,15 +64,46 @@ defmodule SimpleServer.SinkHandler do
   def handle_publish(client_id, sink_event, _message_id) do
     Logger.info("received an event from client #{client_id}, #{inspect_event(sink_event)}")
 
-    ingested_at = DateTime.utc_now()
-    sequence_number = DateTime.to_unix(ingested_at)
-    instance_id = get_instance_id(client_id)
-    client = {client_id, instance_id}
-    {:ok, _} = SimpleServer.insert_ground_event(client, sink_event, ingested_at)
+    # check if we've already logged the event
+    event_topic = {sink_event.event_type_id, sink_event.key}
 
-    :ok = EventProduction.broadcast(client_id, sink_event, sequence_number)
+    case EventProduction.get_event(client_id, event_topic, sink_event.offset) do
+      {:hit, existing_event} when existing_event == sink_event ->
+        :ack
 
-    :ack
+      {:hit, _existing_event} ->
+        {:nack, <<>>, "Mismatched event"}
+
+      {:miss, :offset_above_max, _} ->
+        # it's an event we've never seen before, log it and publish to pub sub
+        ingested_at = DateTime.utc_now()
+        sequence_number = DateTime.to_unix(ingested_at)
+        instance_id = get_instance_id(client_id)
+        client = {client_id, instance_id}
+        {:ok, _} = SimpleServer.insert_ground_event(client, sink_event, ingested_at)
+
+        :ok = EventProduction.broadcast(client_id, sink_event, sequence_number)
+
+        :ack
+
+      {:miss, :new_topic} ->
+        # we have never seen this topic before for this producer
+        # todo: DRY this up with the block above
+        ingested_at = DateTime.utc_now()
+        sequence_number = DateTime.to_unix(ingested_at)
+        instance_id = get_instance_id(client_id)
+        client = {client_id, instance_id}
+        {:ok, _} = SimpleServer.insert_ground_event(client, sink_event, ingested_at)
+
+        :ok = EventProduction.broadcast(client_id, sink_event, sequence_number)
+        :ack
+
+      {:miss, :not_in_cache} ->
+        # pull from storage, check it's the same event before we ack
+        # todo: implement
+
+        {:nack, <<>>, "Not implemented"}
+    end
   end
 
   @impl true
