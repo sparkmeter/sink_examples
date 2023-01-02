@@ -8,10 +8,11 @@ defmodule EventProduction.Coordinator do
   defmodule State do
     @moduledoc false
 
-    defstruct [:cache_managers]
+    defstruct [:storage_mod, :cache_managers]
 
-    def init() do
+    def init(storage_mod) do
       %State{
+        storage_mod: storage_mod,
         cache_managers: %{}
       }
     end
@@ -46,8 +47,8 @@ defmodule EventProduction.Coordinator do
   end
 
   @impl true
-  def init(_) do
-    {:ok, State.init()}
+  def init(storage_mod: storage_mod) do
+    {:ok, State.init(storage_mod)}
   end
 
   @impl true
@@ -56,7 +57,12 @@ defmodule EventProduction.Coordinator do
       {:ok, pid} =
         DynamicSupervisor.start_child(
           EventProduction.DynamicSupervisor,
-          {CacheManager, [client_id: client_id, client_instance_id: client_instance_id]}
+          {CacheManager,
+           [
+             storage_mod: state.storage_mod,
+             client_id: client_id,
+             client_instance_id: client_instance_id
+           ]}
         )
 
       ref = Process.monitor(pid)

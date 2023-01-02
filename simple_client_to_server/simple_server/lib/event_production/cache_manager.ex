@@ -24,6 +24,7 @@ defmodule EventProduction.CacheManager do
     @moduledoc false
 
     fields = [
+      :storage_mod,
       :client_id,
       :client_instance_id,
       :max_sequence_number,
@@ -36,12 +37,21 @@ defmodule EventProduction.CacheManager do
     @enforce_keys fields
     defstruct fields
 
-    def init(client_id, client_instance_id, counters, ets_current_events) do
+    def init(
+          storage_mod: storage_mod,
+          client_id: client_id,
+          client_instance_id: client_instance_id,
+          max_sequence_number: max_sequence_number,
+          max_event_timestamp: max_event_timestamp,
+          counters: counters,
+          ets_current_events: ets_current_events
+        ) do
       %State{
+        storage_mod: storage_mod,
         client_id: client_id,
         client_instance_id: client_instance_id,
-        max_sequence_number: nil,
-        max_event_timestamp: nil,
+        max_sequence_number: max_sequence_number,
+        max_event_timestamp: max_event_timestamp,
         counters: counters,
         ets_current_events: ets_current_events,
         last_ping: nil
@@ -79,13 +89,19 @@ defmodule EventProduction.CacheManager do
   end
 
   @impl true
-  def init(client_id: client_id, client_instance_id: client_instance_id) do
+  def init(storage_mod: storage_mod, client_id: client_id, client_instance_id: client_instance_id) do
     counters = :counters.new(1, [])
     ets_current_events = :ets.new(:table, [:set, :protected])
 
+    # make sure we get any new events that happen while we are loading existing events from storage
     :ok = Phoenix.PubSub.subscribe(:sink_events, EventProduction.topic(client_id))
-    # todo: load existing values from database
-    # load_from_db(ets_current_events, client_id)
+
+    # load existing events from storage
+    {:ok, max_sequence_number, max_event_timestamp} =
+      load_from_db(storage_mod, ets_current_events, client_id, client_instance_id)
+
+    :ok = :counters.put(counters, @counters_seq_num, max_sequence_number || 0)
+    # todo: also track max_event_timestamp in counter
 
     {:ok, _} =
       Registry.register(
@@ -94,7 +110,16 @@ defmodule EventProduction.CacheManager do
         {counters, ets_current_events}
       )
 
-    {:ok, State.init(client_id, client_instance_id, counters, ets_current_events)}
+    {:ok,
+     State.init(
+       storage_mod: storage_mod,
+       client_id: client_id,
+       client_instance_id: client_instance_id,
+       max_sequence_number: max_sequence_number,
+       max_event_timestamp: max_event_timestamp,
+       counters: counters,
+       ets_current_events: ets_current_events
+     )}
   end
 
   @impl true
@@ -103,10 +128,7 @@ defmodule EventProduction.CacheManager do
       {:ok, new_state} ->
         :ok = :counters.put(state.counters, @counters_seq_num, sequence_number)
 
-        ets_val =
-          {{sink_event.event_type_id, sink_event.event_type_id}, sink_event, sequence_number}
-
-        :ets.insert(state.ets_current_events, ets_val)
+        ets_insert(state.ets_current_events, sink_event, sequence_number)
         {:noreply, new_state}
 
         # todo: error handling
@@ -115,6 +137,28 @@ defmodule EventProduction.CacheManager do
 
   defp registry_lookup(client_id) do
     Registry.lookup(@registry, {:cache_manager, client_id})
+  end
+
+  defp load_from_db(_mod, _ets_table, _client_id, nil), do: {:ok, nil, nil}
+
+  defp load_from_db(mod, ets_table, client_id, client_instance_id) do
+    {max_sequence_number, max_event_timestamp} =
+      Enum.reduce(mod.get_current_events(client_id, client_instance_id), {nil, nil}, fn {event,
+                                                                                         seq_num},
+                                                                                        acc ->
+        ets_insert(ets_table, event, seq_num)
+        {max_sequence_number, max_event_timestamp} = acc
+
+        {max(max_sequence_number, seq_num) || seq_num,
+         max(max_event_timestamp, event.timestamp) || event.timestamp}
+      end)
+
+    {:ok, max_sequence_number, max_event_timestamp}
+  end
+
+  defp ets_insert(table, sink_event, sequence_number) do
+    ets_val = {{sink_event.event_type_id, sink_event.key}, sink_event, sequence_number}
+    true = :ets.insert(table, ets_val)
   end
 
   # do we want to use a continue?

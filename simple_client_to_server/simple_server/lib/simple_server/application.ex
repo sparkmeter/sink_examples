@@ -13,7 +13,7 @@ defmodule SimpleServer.Application do
       [
         Repo,
         {Phoenix.PubSub, name: :sink_events},
-        EventProduction.Supervisor
+        {EventProduction.Supervisor, storage: SimpleServer.SinkEventStorage}
       ] ++ sink_server(env)
 
     opts = [strategy: :one_for_one, name: SimpleServer.Supervisor]
