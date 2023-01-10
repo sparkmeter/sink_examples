@@ -29,6 +29,7 @@ defmodule SimpleClient.Application do
 
   defp sink_client(_) do
     [
+      {EventCursors.Supervisor, storage: SimpleClient.SinkSubscriptionStorage},
       {Sink.Connection.Client,
        port: SinkConfig.port(),
        host: SinkConfig.host(),

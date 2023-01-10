@@ -21,8 +21,14 @@ defmodule SimpleClient.Repo.Migrations.InitialTables do
       timestamps()
     end
 
-    create table(:ack_logs, primary_key: true) do
-      timestamps(updated_at: false)
+    create table(:outgoing_event_subscriptions, primary_key: false) do
+      add :key, :binary, null: false, primary_key: true
+      add :event_type_id, :integer, null: false, primary_key: true
+      add :consumer_offset, :integer, null: false
+      add :ack_at_row_id, :integer, null: true
+      add :nack_at_row_id, :boolean, null: true
+
+      timestamps()
     end
 
     create table(:sink_instance_ids) do

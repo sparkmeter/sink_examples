@@ -55,8 +55,15 @@ defmodule EventCursors.CursorManager do
     GenServer.start_link(__MODULE__, args)
   end
 
-  def ack(client_id, sequence_number) do
-    case registry_lookup(client_id, sequence_number) do
+  def queue_size(subscription_name, client_id) do
+    case registry_lookup(subscription_name, client_id) do
+      [{pid, _}] ->
+        GenServer.call(pid, :queue_size)
+    end
+  end
+
+  def ack(subscription_name, client_id, sequence_number) do
+    case registry_lookup(subscription_name, client_id) do
       [{pid, _}] ->
         GenServer.call(pid, {:ack, sequence_number})
     end
@@ -81,8 +88,8 @@ defmodule EventCursors.CursorManager do
     {:ok, _} =
       Registry.register(
         @registry,
-        {:cursor_manager, client_id},
-        nil
+        {:cursor_manager, subscription_name, client_id},
+        1_234_567_890
       )
 
     {ack_cursor, nack_cursor} = load_cursors_from_db(storage_mod, client_id, client_instance_id)
@@ -99,7 +106,21 @@ defmodule EventCursors.CursorManager do
   end
 
   @impl true
-  def handle_info({:ack, _client_id, sequence_number}, state) do
+  def handle_call(:queue_size, _from, state) do
+    if is_nil(state.nack_cursor) do
+      r =
+        state.storage_mod.queue_size(
+          state.subscription_name,
+          state.client_id,
+          state.client_instance_id,
+          state.ack_cursor
+        )
+
+      {:reply, r, state}
+    end
+  end
+
+  def handle_call({:ack, _client_id, sequence_number}, _from, state) do
     case State.ack(state, sequence_number) do
       {:ok, new_state} ->
         {:noreply, new_state}
@@ -109,11 +130,12 @@ defmodule EventCursors.CursorManager do
   end
 
   defp registry_lookup(subscription_name, client_id) do
-    Registry.lookup(@registry, {:cursor_manager, {subscription_name, client_id}})
+    Registry.lookup(@registry, {:cursor_manager, subscription_name, client_id})
   end
 
   defp load_cursors_from_db(_mod, _client_id, _client_instance_id) do
-    ack_cursor = 1
+    # todo: actually load this
+    ack_cursor = 0
     nack_cursor = nil
     {ack_cursor, nack_cursor}
   end
