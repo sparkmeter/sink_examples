@@ -66,13 +66,6 @@ defmodule EventCursors.CursorManager do
     end
   end
 
-  def ack(subscription_name, client_id, sequence_number) do
-    case registry_lookup(subscription_name, client_id) do
-      [{pid, _}] ->
-        GenServer.call(pid, {:ack, sequence_number})
-    end
-  end
-
   def nack(_client_id, _sequence_number) do
   end
 
@@ -122,15 +115,6 @@ defmodule EventCursors.CursorManager do
         )
 
       {:reply, events, State.taken(state, last_seq_number)}
-    end
-  end
-
-  def handle_call({:ack, _client_id, sequence_number}, _from, state) do
-    case State.ack(state, sequence_number) do
-      {:ok, new_state} ->
-        {:noreply, new_state}
-
-        # todo: error handling
     end
   end
 

@@ -10,12 +10,12 @@ defmodule SimpleClient.OutgoingEventSubscription do
 
   @type t() :: %__MODULE__{}
 
-  @primary_key {:name, :string, autogenerate: false}
+  @primary_key false
   schema "outgoing_event_subscriptions" do
-    field(:key, :binary)
-    field(:event_type_id, :integer)
+    field(:key, :binary, primary_key: true)
+    field(:event_type_id, :integer, primary_key: true)
     field(:consumer_offset, :integer)
-    field(:row_id, :integer)
+    field(:ack_at_row_id, :integer)
     field(:nack_at_row_id, :integer)
 
     timestamps()

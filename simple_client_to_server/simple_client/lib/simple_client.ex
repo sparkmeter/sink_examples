@@ -38,7 +38,7 @@ defmodule SimpleClient do
           event_type_id: event.event_type_id,
           key: event.key,
           consumer_offset: 0,
-          row_id: nil,
+          ack_at_row_id: nil,
           nack_at_row_id: nil
         })
       end
@@ -56,7 +56,13 @@ defmodule SimpleClient do
     |> List.last()
   end
 
-  def ack_event({_event_type_id, _key, _offset}, _sequence_number) do
+  def ack_event({event_type_id, key, offset}) do
+    {:ok, _} =
+      OutgoingEventSubscription
+      |> Repo.get_by(event_type_id: event_type_id, key: key)
+      |> Ecto.Changeset.change(consumer_offset: offset)
+      |> Repo.update()
+
     :ok
   end
 

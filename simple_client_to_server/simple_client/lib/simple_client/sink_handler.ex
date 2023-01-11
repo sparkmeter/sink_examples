@@ -64,8 +64,7 @@ defmodule SimpleClient.SinkHandler do
   def handle_ack(ack_key) do
     Logger.info("received 'ack' for event: #{inspect(ack_key)}")
 
-    sequence_number = nil
-    SimpleClient.ack_event(ack_key, sequence_number)
+    SimpleClient.ack_event(ack_key)
 
     :ok
   end

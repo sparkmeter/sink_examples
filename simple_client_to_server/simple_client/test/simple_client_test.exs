@@ -56,13 +56,13 @@ defmodule SimpleClientTest do
       assert nil != next_event
       assert "kitchen" == next_event.key
       assert 2 == next_event.offset
+
+      assert nil == SimpleClient.get_next_event()
     end
 
     test "does not return ack'd events" do
       {:ok, _} = SimpleClient.log_sensor_reading("kitchen", %{temperature: 70, humidity: 40})
-      next = SimpleClient.get_next_event()
-      bogus_row_id = 1
-      {:ok, _} = SimpleClient.ack_event({next.event_type_id, next.key, next.offset}, bogus_row_id)
+      :ok = SimpleClient.ack_event({1, "kitchen", 1})
 
       assert nil == SimpleClient.get_next_event()
     end
