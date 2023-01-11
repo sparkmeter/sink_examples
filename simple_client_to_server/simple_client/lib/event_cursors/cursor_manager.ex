@@ -36,8 +36,12 @@ defmodule EventCursors.CursorManager do
         client_instance_id: client_instance_id,
         ack_cursor: ack_cursor,
         nack_cursor: nack_cursor,
-        inflight_cursor: ack_cursor
+        inflight_cursor: nack_cursor || ack_cursor
       }
+    end
+
+    def taken(state, last_seq_number) do
+      %State{state | inflight_cursor: last_seq_number}
     end
 
     def ack(state, sequence_number) do
@@ -108,16 +112,16 @@ defmodule EventCursors.CursorManager do
   @impl true
   def handle_call({:take, num}, _from, state) do
     if is_nil(state.nack_cursor) do
-      r =
+      {events, last_seq_number} =
         state.storage_mod.take(
           state.subscription_name,
           state.client_id,
           state.client_instance_id,
-          state.ack_cursor,
+          state.inflight_cursor,
           num
         )
 
-      {:reply, r, state}
+      {:reply, events, State.taken(state, last_seq_number)}
     end
   end
 

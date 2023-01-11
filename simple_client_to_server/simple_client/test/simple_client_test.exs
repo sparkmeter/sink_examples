@@ -51,6 +51,11 @@ defmodule SimpleClientTest do
       assert nil != next_event
       assert "kitchen" == next_event.key
       assert 1 == next_event.offset
+
+      next_event = SimpleClient.get_next_event()
+      assert nil != next_event
+      assert "kitchen" == next_event.key
+      assert 2 == next_event.offset
     end
 
     test "does not return ack'd events" do

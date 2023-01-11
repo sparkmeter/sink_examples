@@ -10,17 +10,31 @@ defmodule SimpleClient.SinkSubscriptionStorage do
   def take(OutgoingEventSubscription, "self", _client_instance_id, last_seq_number, num) do
     last_seq_number = last_seq_number || 0
 
-    from(log in @log_table,
-      join: sub in @sub_table,
-      on:
-        log.key == sub.key and log.event_type_id == sub.event_type_id and
-          log.offset > sub.consumer_offset,
-      where: log.id > ^last_seq_number,
-      select: log,
-      order_by: [asc: log.id],
-      limit: ^num
-    )
-    |> Repo.all()
+    events =
+      from(log in @log_table,
+        join: sub in @sub_table,
+        on:
+          log.key == sub.key and log.event_type_id == sub.event_type_id and
+            log.offset > sub.consumer_offset,
+        where: log.id > ^last_seq_number,
+        select: log,
+        order_by: [asc: log.id],
+        limit: ^num
+      )
+      |> Repo.all()
+
+    new_seq_number =
+      case events do
+        [] ->
+          nil
+
+        [_] ->
+          events
+          |> List.last()
+          |> Map.fetch!(:id)
+      end
+
+    {events, new_seq_number}
   end
 
   def get_latest_ackd_subscription(_processor) do
