@@ -1,5 +1,6 @@
 defmodule SimpleClient do
   @moduledoc false
+  import Ecto.Query, only: [from: 2]
   alias SimpleClient.{OutgoingEventSubscription, GroundEventLog, LastSensorReading}
   alias SimpleClient.Repo
 
@@ -56,14 +57,38 @@ defmodule SimpleClient do
     |> List.last()
   end
 
-  def ack_event({event_type_id, key, offset}) do
+  def ack_event({event_type_id, key, offset}, sequence_number) do
     {:ok, _} =
       OutgoingEventSubscription
       |> Repo.get_by(event_type_id: event_type_id, key: key)
-      |> Ecto.Changeset.change(consumer_offset: offset)
+      |> Ecto.Changeset.change(
+        consumer_offset: offset,
+        ack_at_row_id: sequence_number,
+        nack_at_row_id: nil
+      )
       |> Repo.update()
 
     :ok
+  end
+
+  def nack_event({event_type_id, key, _offset}, sequence_number) do
+    from(sub in OutgoingEventSubscription,
+      where:
+        sub.event_type_id == ^event_type_id and sub.key == ^key and is_nil(sub.nack_at_row_id)
+    )
+    |> Repo.one()
+    |> case do
+      nil ->
+        :ok
+
+      sub ->
+        {:ok, _} =
+          sub
+          |> Ecto.Changeset.change(nack_at_row_id: sequence_number)
+          |> Repo.update()
+
+        :ok
+    end
   end
 
   defp log_ground_event(sink_event) do

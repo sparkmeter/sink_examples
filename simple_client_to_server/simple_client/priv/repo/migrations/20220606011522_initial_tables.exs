@@ -35,7 +35,7 @@ defmodule SimpleClient.Repo.Migrations.InitialTables do
       add :event_type_id, :integer, null: false, primary_key: true
       add :consumer_offset, :integer, null: false
       add :ack_at_row_id, :integer, null: true
-      add :nack_at_row_id, :boolean, null: true
+      add :nack_at_row_id, :integer, null: true
 
       timestamps()
     end

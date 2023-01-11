@@ -89,7 +89,12 @@ defmodule EventCursors.CursorManager do
         1_234_567_890
       )
 
-    {ack_cursor, nack_cursor} = load_cursors_from_db(storage_mod, client_id, client_instance_id)
+    cursor =
+      storage_mod.get_earliest_unsent_sequence_number(
+        subscription_name,
+        client_id,
+        client_instance_id
+      )
 
     {:ok,
      State.init(
@@ -97,35 +102,26 @@ defmodule EventCursors.CursorManager do
        subscription_name: subscription_name,
        client_id: client_id,
        client_instance_id: client_instance_id,
-       ack_cursor: ack_cursor,
-       nack_cursor: nack_cursor
+       ack_cursor: cursor,
+       nack_cursor: cursor
      )}
   end
 
   @impl true
   def handle_call({:take, num}, _from, state) do
-    if is_nil(state.nack_cursor) do
-      {events, last_seq_number} =
-        state.storage_mod.take(
-          state.subscription_name,
-          state.client_id,
-          state.client_instance_id,
-          state.inflight_cursor,
-          num
-        )
+    {events, last_seq_number} =
+      state.storage_mod.take(
+        state.subscription_name,
+        state.client_id,
+        state.client_instance_id,
+        state.inflight_cursor,
+        num
+      )
 
-      {:reply, events, State.taken(state, last_seq_number)}
-    end
+    {:reply, events, State.taken(state, last_seq_number)}
   end
 
   defp registry_lookup(subscription_name, client_id) do
     Registry.lookup(@registry, {:cursor_manager, subscription_name, client_id})
-  end
-
-  defp load_cursors_from_db(_mod, _client_id, _client_instance_id) do
-    # todo: actually load this
-    ack_cursor = 0
-    nack_cursor = nil
-    {ack_cursor, nack_cursor}
   end
 end
