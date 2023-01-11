@@ -50,12 +50,10 @@ defmodule SimpleClient do
     end
   end
 
-  def queue_size do
-    EventCursors.queue_size(OutgoingEventSubscription, "self")
-  end
-
   def get_next_event() do
-    nil
+    OutgoingEventSubscription
+    |> EventCursors.take("self", 1)
+    |> List.last()
   end
 
   def ack_event({_event_type_id, _key, _offset}, _sequence_number) do

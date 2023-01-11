@@ -29,7 +29,7 @@ defmodule SimpleClientTest do
     assert 3 == length(events)
   end
 
-  describe "queue" do
+  describe "get_next_event" do
     setup do
       {:ok, _} =
         start_supervised({EventCursors.Supervisor, storage: SimpleClient.SinkSubscriptionStorage})
@@ -40,7 +40,6 @@ defmodule SimpleClientTest do
     end
 
     test "is empty with no events" do
-      assert 0 == SimpleClient.queue_size()
       assert nil == SimpleClient.get_next_event()
     end
 
@@ -49,7 +48,6 @@ defmodule SimpleClientTest do
       SimpleClient.log_sensor_reading("kitchen", %{temperature: 71, humidity: 41})
 
       next_event = SimpleClient.get_next_event()
-      assert 2 == SimpleClient.queue_size()
       assert nil != next_event
       assert "kitchen" == next_event.key
       assert 1 == next_event.offset
@@ -61,7 +59,6 @@ defmodule SimpleClientTest do
       bogus_row_id = 1
       {:ok, _} = SimpleClient.ack_event({next.event_type_id, next.key, next.offset}, bogus_row_id)
 
-      assert 0 == SimpleClient.queue_size()
       assert nil == SimpleClient.get_next_event()
     end
   end

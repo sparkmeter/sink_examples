@@ -6,5 +6,5 @@ defmodule EventCursors do
   alias EventCursors.CursorManager
 
   defdelegate add_client(subscription_name, client_id, client_instance_id), to: Coordinator
-  defdelegate queue_size(subscription_name, client_id), to: CursorManager
+  defdelegate take(subscription_name, client_id, num), to: CursorManager
 end

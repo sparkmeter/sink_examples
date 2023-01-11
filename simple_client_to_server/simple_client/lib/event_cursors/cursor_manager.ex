@@ -55,10 +55,10 @@ defmodule EventCursors.CursorManager do
     GenServer.start_link(__MODULE__, args)
   end
 
-  def queue_size(subscription_name, client_id) do
+  def take(subscription_name, client_id, num) do
     case registry_lookup(subscription_name, client_id) do
       [{pid, _}] ->
-        GenServer.call(pid, :queue_size)
+        GenServer.call(pid, {:take, num})
     end
   end
 
@@ -106,14 +106,15 @@ defmodule EventCursors.CursorManager do
   end
 
   @impl true
-  def handle_call(:queue_size, _from, state) do
+  def handle_call({:take, num}, _from, state) do
     if is_nil(state.nack_cursor) do
       r =
-        state.storage_mod.queue_size(
+        state.storage_mod.take(
           state.subscription_name,
           state.client_id,
           state.client_instance_id,
-          state.ack_cursor
+          state.ack_cursor,
+          num
         )
 
       {:reply, r, state}
