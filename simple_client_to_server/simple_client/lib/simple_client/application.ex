@@ -11,8 +11,7 @@ defmodule SimpleClient.Application do
 
     children =
       [
-        Repo,
-        OutgoingEventPoller
+        Repo
       ] ++ sink_client(env)
 
     result =
@@ -34,7 +33,8 @@ defmodule SimpleClient.Application do
        port: SinkConfig.port(),
        host: SinkConfig.host(),
        ssl_opts: SinkConfig.ssl_opts(),
-       handler: SinkHandler}
+       handler: SinkHandler},
+      OutgoingEventPoller
     ]
   end
 end

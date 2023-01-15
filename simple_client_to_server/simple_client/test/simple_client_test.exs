@@ -88,4 +88,36 @@ defmodule SimpleClientTest do
       assert nil == SimpleClient.get_next_event()
     end
   end
+
+  describe "broadway based processor and cursor producer" do
+    setup do
+      {:ok, _} =
+        start_supervised({EventCursors.Supervisor, storage: SimpleClient.SinkSubscriptionStorage})
+
+      {:ok, _} =
+        start_supervised(
+          {SimpleClient.OutgoingEventPoller,
+           producer_module: SimpleClient.OutgoingEventProducer, connection_module: __MODULE__}
+        )
+
+      :ok
+    end
+
+    test "tries to send a message" do
+      {:ok, _} = SimpleClient.log_sensor_reading("kitchen", %{temperature: 70, humidity: 40})
+
+      :ok = EventCursors.add_client(OutgoingEventSubscription, @client_id, @client_instance_id)
+      next_event = SimpleClient.get_next_event()
+      pid = SimpleClient.OutgoingEventPoller |> Broadway.producer_names() |> List.first()
+      GenServer.cast(pid, {:events, [next_event]})
+      # send(SimpleClient.OutgoingEventProducer
+
+      :timer.sleep(100)
+    end
+  end
+
+  def publish(_event, _ack_key) do
+    IO.puts("publishing !!!")
+    :ok
+  end
 end

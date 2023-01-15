@@ -13,8 +13,6 @@ defmodule EventCursors.CursorManager do
       :subscription_name,
       :client_id,
       :client_instance_id,
-      :ack_cursor,
-      :nack_cursor,
       :inflight_cursor
     ]
 
@@ -26,31 +24,19 @@ defmodule EventCursors.CursorManager do
           subscription_name: subscription_name,
           client_id: client_id,
           client_instance_id: client_instance_id,
-          ack_cursor: ack_cursor,
-          nack_cursor: nack_cursor
+          inflight_cursor: inflight_cursor
         ) do
       %State{
         storage_mod: storage_mod,
         subscription_name: subscription_name,
         client_id: client_id,
         client_instance_id: client_instance_id,
-        ack_cursor: ack_cursor,
-        nack_cursor: nack_cursor,
-        inflight_cursor: nack_cursor || ack_cursor
+        inflight_cursor: inflight_cursor
       }
     end
 
     def taken(state, last_seq_number) do
       %State{state | inflight_cursor: last_seq_number}
-    end
-
-    def ack(state, sequence_number) do
-      # todo: check sequence number
-      {:ok,
-       %State{
-         state
-         | ack_cursor: sequence_number
-       }}
     end
   end
 
@@ -102,13 +88,13 @@ defmodule EventCursors.CursorManager do
        subscription_name: subscription_name,
        client_id: client_id,
        client_instance_id: client_instance_id,
-       ack_cursor: cursor,
-       nack_cursor: cursor
+       inflight_cursor: cursor
      )}
   end
 
   @impl true
   def handle_call({:take, num}, _from, state) do
+    # should this switch to GenStage and handle_demand ?
     {events, last_seq_number} =
       state.storage_mod.take(
         state.subscription_name,
