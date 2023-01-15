@@ -32,7 +32,10 @@ defmodule SimpleClientTest do
   describe "get_next_event" do
     setup do
       {:ok, _} =
-        start_supervised({EventCursors.Supervisor, storage: SimpleClient.SinkSubscriptionStorage})
+        start_supervised(
+          {EventCursors.Supervisor,
+           storage: SimpleClient.SinkSubscriptionStorage, subscription: OutgoingEventSubscription}
+        )
 
       :ok
     end
@@ -92,7 +95,10 @@ defmodule SimpleClientTest do
   describe "broadway based processor and cursor producer" do
     setup do
       {:ok, _} =
-        start_supervised({EventCursors.Supervisor, storage: SimpleClient.SinkSubscriptionStorage})
+        start_supervised(
+          {EventCursors.Supervisor,
+           storage: SimpleClient.SinkSubscriptionStorage, subscription: OutgoingEventSubscription}
+        )
 
       {:ok, _} =
         start_supervised(

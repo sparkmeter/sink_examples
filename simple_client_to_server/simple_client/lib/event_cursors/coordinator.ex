@@ -8,37 +8,40 @@ defmodule EventCursors.Coordinator do
   defmodule State do
     @moduledoc false
 
-    defstruct [:storage_mod, :cursor_managers]
+    defstruct [:storage_mod, :subscription, :cursor_managers]
 
-    def init(storage_mod) do
+    def init(storage_mod: storage_mod, subscription: subscription) do
       %State{
         storage_mod: storage_mod,
+        subscription: subscription,
         cursor_managers: %{}
       }
     end
 
-    def add_client(state, subscription_name, client_id, client_instance_id, pid, ref) do
+    def add_client(state, client_id, client_instance_id, pid, ref) do
       %State{
         state
         | cursor_managers:
             Map.put(
               state.cursor_managers,
-              {subscription_name, client_id},
+              client_id,
               {client_instance_id, pid, ref}
             )
       }
     end
 
-    def registered?(state, subscription_name, client_id, _client_instance_id) do
+    def registered?(state, client_id, _client_instance_id) do
       # todo: handle mismatched client_id
       # should we use the registry?
-      Map.has_key?(state.cursor_managers, {subscription_name, client_id})
+      Map.has_key?(state.cursor_managers, client_id)
     end
   end
 
   def start_link(init_args) do
     # todo: inject registry so we can use Horde.Registry ?
-    GenServer.start_link(__MODULE__, init_args, name: __MODULE__)
+    subscription = Keyword.fetch!(init_args, :subscription)
+    name = Module.concat(subscription, Coordinator)
+    GenServer.start_link(__MODULE__, init_args, name: name)
   end
 
   @doc """
@@ -47,41 +50,46 @@ defmodule EventCursors.Coordinator do
   - Ensures no other process is running for the client_id
   - Starts a CursorManager under the dynamic supervisor
   """
-  def add_client(subscription_name, client_id, client_instance_id) do
-    GenServer.call(__MODULE__, {:add_client, subscription_name, client_id, client_instance_id})
+  def add_client(subscription, client_id, client_instance_id) do
+    name = Module.concat(subscription, Coordinator)
+    GenServer.call(name, {:add_client, client_id, client_instance_id})
   end
 
   @impl true
-  def init(storage_mod: storage_mod) do
-    {:ok, State.init(storage_mod)}
+  def init(args) do
+    storage_mod = Keyword.fetch!(args, :storage_mod)
+    subscription = Keyword.fetch!(args, :subscription)
+    {:ok, State.init(storage_mod: storage_mod, subscription: subscription)}
   end
 
   @impl true
-  def handle_call({:add_client, sub_name, client_id, client_instance_id}, _from, state) do
-    if !registered?(state, sub_name, client_id, client_instance_id) do
+  def handle_call({:add_client, client_id, client_instance_id}, _from, state) do
+    dynamic_sup_mod = Module.concat(state.subscription, DynamicSupervisor)
+
+    if !registered?(state, client_id, client_instance_id) do
       {:ok, pid} =
         DynamicSupervisor.start_child(
-          EventCursors.DynamicSupervisor,
+          dynamic_sup_mod,
           {CursorManager,
            [
              storage_mod: state.storage_mod,
-             subscription_name: sub_name,
+             subscription: state.subscription,
              client_id: client_id,
              client_instance_id: client_instance_id
            ]}
         )
 
       ref = Process.monitor(pid)
-      new_state = State.add_client(state, sub_name, client_id, client_instance_id, pid, ref)
+      new_state = State.add_client(state, client_id, client_instance_id, pid, ref)
       {:reply, :ok, new_state}
     else
       {:reply, {:error, :in_use}, state}
     end
   end
 
-  defp registered?(state, subscription_name, client_id, client_instance_id) do
+  defp registered?(state, client_id, client_instance_id) do
     # todo: also use global lock and/or postgres locks or something to ensure global uniquess
     # postgres would be nice since it handles network splits
-    State.registered?(state, subscription_name, client_id, client_instance_id)
+    State.registered?(state, client_id, client_instance_id)
   end
 end

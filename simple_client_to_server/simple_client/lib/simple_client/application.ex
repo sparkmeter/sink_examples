@@ -3,7 +3,13 @@ defmodule SimpleClient.Application do
 
   use Application
 
-  alias SimpleClient.{Repo, OutgoingEventPoller, SinkConfig, SinkHandler}
+  alias SimpleClient.{
+    Repo,
+    OutgoingEventPoller,
+    OutgoingEventSubscription,
+    SinkConfig,
+    SinkHandler
+  }
 
   @impl Application
   def start(_type, _args) do
@@ -28,7 +34,8 @@ defmodule SimpleClient.Application do
 
   defp sink_client(_) do
     [
-      {EventCursors.Supervisor, storage: SimpleClient.SinkSubscriptionStorage},
+      {EventCursors.Supervisor,
+       storage: SimpleClient.SinkSubscriptionStorage, subscription: OutgoingEventSubscription},
       {Sink.Connection.Client,
        port: SinkConfig.port(),
        host: SinkConfig.host(),
