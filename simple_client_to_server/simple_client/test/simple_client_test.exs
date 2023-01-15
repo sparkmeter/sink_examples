@@ -94,6 +94,12 @@ defmodule SimpleClientTest do
 
   describe "broadway based processor and cursor producer" do
     setup do
+      :ok
+    end
+
+    test "tries to send a message" do
+      {:ok, _} = SimpleClient.log_sensor_reading("kitchen", %{temperature: 70, humidity: 40})
+
       {:ok, _} =
         start_supervised(
           {EventCursors.Supervisor,
@@ -106,19 +112,9 @@ defmodule SimpleClientTest do
            producer_module: SimpleClient.OutgoingEventProducer, connection_module: __MODULE__}
         )
 
-      :ok
-    end
-
-    test "tries to send a message" do
-      {:ok, _} = SimpleClient.log_sensor_reading("kitchen", %{temperature: 70, humidity: 40})
-
       :ok = EventCursors.add_client(OutgoingEventSubscription, @client_id, @client_instance_id)
-      next_event = SimpleClient.get_next_event()
-      pid = SimpleClient.OutgoingEventPoller |> Broadway.producer_names() |> List.first()
-      GenServer.cast(pid, {:events, [next_event]})
-      # send(SimpleClient.OutgoingEventProducer
 
-      :timer.sleep(100)
+      :timer.sleep(12000)
     end
   end
 

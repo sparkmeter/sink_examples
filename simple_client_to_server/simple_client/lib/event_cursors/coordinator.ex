@@ -3,6 +3,7 @@ defmodule EventCursors.Coordinator do
   Coordinates starting and stopping CursorsManagers for a subscription and client_id
   """
   use GenServer
+  require Logger
   alias EventCursors.CursorManager
 
   defmodule State do
@@ -34,6 +35,16 @@ defmodule EventCursors.Coordinator do
       # todo: handle mismatched client_id
       # should we use the registry?
       Map.has_key?(state.cursor_managers, client_id)
+    end
+
+    def down(state, ref) do
+      client_id =
+        state.cursor_managers
+        |> Map.values()
+        |> Enum.find(fn {_client_id, {_, _pid, r}} -> r == ref end)
+
+      {:ok, %State{state | cursor_managers: Map.delete(state.cursor_managers, client_id)},
+       client_id}
     end
   end
 
@@ -85,6 +96,14 @@ defmodule EventCursors.Coordinator do
     else
       {:reply, {:error, :in_use}, state}
     end
+  end
+
+  @impl true
+  def handle_info({:DOWN, ref, :process, _pid, reason}, state) do
+    {:ok, new_state, client_id} = State.down(state, ref)
+    # todo: remove client from state
+    Logger.debug("client #{client_id} terminating for reason #{reason}")
+    {:noreply, new_state}
   end
 
   defp registered?(state, client_id, client_instance_id) do

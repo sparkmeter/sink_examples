@@ -4,7 +4,8 @@ defmodule SimpleClient.OutgoingEventPoller do
   """
 
   use Broadway
-  alias Sink.Connection
+
+  @subscription SimpleClient.OutgoingEventSubscription
 
   @spec start_link(list(keyword())) :: :ignore | {:error, any()} | {:ok, pid()}
   def start_link(opts) do
@@ -14,7 +15,7 @@ defmodule SimpleClient.OutgoingEventPoller do
     Broadway.start_link(__MODULE__,
       name: __MODULE__,
       producer: [
-        module: {producer_mod, 1},
+        module: {producer_mod, [1, subscription: @subscription]},
         transformer: {producer_mod, :transform, []}
       ],
       processors: [

@@ -5,15 +5,18 @@ defmodule SimpleClient.OutgoingEventProducer do
   Manages which clients to ask for events.
 
   Todo: this is what I'm thinking:
-  - maintains a list of pids with events to process
+  - maintains a list of client_ids with events to process
   - if this list is empty, broadcast a message to all event cursors asking who has events
   - store this list
-  - loop through the list and ask each pid for events until the list of pids is empty
-  - if the pid list is empty, refill pid list
+  - loop through the list and ask each client_id for events until the list of client_ids is empty
+  - if the client_id list is empty, refill client_id list
 
-  every X time window check if the pid list is empty. if it is, refill
+  every X time window check if the client_id list is empty. if it is, refill
+
+  could use pids instead of client_id, but the client_id is more useful to humans and for logger statements
   """
   use GenStage
+  alias EventCursors.CursorManager
 
   @first_tick_after :timer.seconds(1)
   @tick_interval :timer.seconds(5)
@@ -22,22 +25,29 @@ defmodule SimpleClient.OutgoingEventProducer do
     @moduledoc false
 
     fields = [
-      :pids_with_events,
+      :subscription,
+      :client_ids_with_events,
       :pending_demand
     ]
 
     @enforce_keys fields
     defstruct fields
 
-    def init() do
+    def init(subscription) do
       %State{
-        pids_with_events: [],
+        subscription: subscription,
+        client_ids_with_events: :queue.new(),
         pending_demand: 0
       }
     end
 
-    def buffer_demand(state, demand) do
-      %State{state | pending_demand: state.pending_demand + demand}
+    def add_client_id(state, client_id) do
+      # do we care about duplicates? this should probably be a queue
+      %State{state | client_ids_with_events: :queue.in(client_id, state.client_ids_with_events)}
+    end
+
+    def remaining_demand(state, remaining_client_ids, pending_demand) do
+      %State{state | client_ids_with_events: remaining_client_ids, pending_demand: pending_demand}
     end
   end
 
@@ -46,30 +56,25 @@ defmodule SimpleClient.OutgoingEventProducer do
   end
 
   @impl true
-  def init(_opts) do
-    state = State.init()
+  def init(opts) do
+    subscription = Keyword.fetch!(opts, :subscription)
+    state = State.init(subscription)
     schedule_tick(@first_tick_after)
+
+    :ok = EventCursors.CursorManager.ping_active_cursor_managers(subscription)
 
     {:producer, state}
   end
 
   @impl true
   def handle_demand(demand, state) when demand > 0 do
-    IO.inspect("SimpleClient.OutgoingEventProducer - handling demand")
-    events = get_events(state.pids_with_events, demand)
+    {events, client_id_queue, remaining_demand} =
+      flush(state.subscription, state.client_ids_with_events, demand + state.pending_demand)
 
-    unfulfilled_demand =
-      case length(events) - demand do
-        0 -> 0
-        x -> x
-      end
-
-    {:noreply, events, State.buffer_demand(state, unfulfilled_demand)}
+    {:noreply, events, State.remaining_demand(state, client_id_queue, remaining_demand)}
   end
 
   def transform(event, _opts) do
-    IO.inspect(event)
-
     %Broadway.Message{
       data: event,
       acknowledger: {Broadway.NoopAcknowledger, nil, nil}
@@ -77,35 +82,59 @@ defmodule SimpleClient.OutgoingEventProducer do
   end
 
   @impl true
-  def handle_cast({:events, events}, state) do
-    # todo: remove me and replace with a real method
-    IO.puts("cast !!!")
-    {:noreply, events, state}
-  end
-
-  @impl true
   def handle_info(:tick, state) do
-    events =
-      if state.pending_demand > 0 do
-        get_events(state.pids_with_events, state.pending_demand)
-      else
-        []
-      end
+    IO.puts("tick")
+
+    {events, client_id_queue, remaining_demand} =
+      flush(state.subscription, state.client_ids_with_events, state.pending_demand)
 
     @tick_interval |> jitter_interval() |> schedule_tick()
 
-    {:noreply, events, state}
+    {:noreply, events, State.remaining_demand(state, client_id_queue, remaining_demand)}
   end
 
-  defp get_events([], _demand) do
-    # request demand from cursor managers via registry
-    IO.inspect("SimpleClient.OutgoingEventProducer - requesting demand")
-    # EventCursors.Coordinator.request_events()
-    []
+  def handle_info({:pong, client_id}, state) do
+    IO.puts("ponged")
+    # todo: maybe emit events if we have pending demand
+    {:noreply, [], State.add_client_id(state, client_id)}
   end
 
-  defp get_events(_pids, _demand) do
-    []
+  defp flush(subscription, client_ids, demand) do
+    {client_id_queue, events, remaining_demand} = get_events(subscription, client_ids, demand)
+
+    if :queue.is_empty(client_id_queue) do
+      :ok = EventCursors.CursorManager.ping_active_cursor_managers(subscription)
+    end
+
+    {events, client_id_queue, remaining_demand}
+  end
+
+  defp get_events(_subscription, q, demand) when q == {[], []}, do: {q, [], demand}
+
+  defp get_events(subscription, client_id_queue, demand) do
+    # see: https://elixirforum.com/t/write-while-loop-equivalent-in-elixir/15880/2
+    Stream.unfold({client_id_queue, [], demand}, fn {acc_client_id_q, acc_events, acc_demand} ->
+      {result, q} = :queue.out(acc_client_id_q)
+
+      if result == :empty || demand == 0 do
+        nil
+      else
+        {:value, client_id} = result
+        events = CursorManager.take(subscription, client_id, acc_demand)
+
+        if length(events) == demand do
+          # we might have more events, add client_id back to the end of the queue
+          r = {:queue.in(client_id, q), acc_events ++ events, 0}
+          {r, r}
+        else
+          # todo: what if length(events) > demand? raise?
+          r = {q, acc_events ++ events, acc_demand - length(events)}
+          {r, r}
+        end
+      end
+    end)
+    |> Enum.to_list()
+    |> List.first()
   end
 
   defp schedule_tick(time) do

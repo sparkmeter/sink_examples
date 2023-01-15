@@ -51,11 +51,29 @@ defmodule EventCursors.CursorManager do
     end
   end
 
-  #  def dispatch(subscription, message) do
-  #    Registry.dispatch(Registry.PubSubTest, "hello", fn entries ->
-  #      for {pid, _} <- entries, do: send(pid, {:broadcast, "world"})
-  #    end)
-  #  end
+  @doc """
+  Ask relevant, running cursor managers to identify themselves.
+
+  With this list we can ask for events.
+  """
+  def ping_active_cursor_managers(subscription) do
+    IO.puts("pinged")
+
+    subscription
+    |> registry_mod()
+    |> Registry.select([{{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$2", :"$3"}}]}])
+    |> Enum.each(fn {_client_id, pid, _value} ->
+      try do
+        send(pid, {:ping, self()})
+      catch
+        _kind, _reason ->
+          # process is gone
+          :ok
+      end
+    end)
+
+    :ok
+  end
 
   def nack(_client_id, _sequence_number) do
   end
@@ -76,7 +94,7 @@ defmodule EventCursors.CursorManager do
     {:ok, _} =
       Registry.register(
         registry_mod(subscription),
-        {:cursor_manager, subscription, client_id},
+        client_id,
         1_234_567_890
       )
 
@@ -112,12 +130,20 @@ defmodule EventCursors.CursorManager do
     {:reply, events, State.taken(state, last_seq_number)}
   end
 
+  @impl true
+  def handle_info({:ping, from_pid}, state) do
+    # todo: handle from_pid crashing
+    send(from_pid, {:pong, state.client_id})
+
+    {:noreply, state}
+  end
+
   defp registry_mod(subscription), do: Module.concat(subscription, Registry)
 
   defp registry_lookup(subscription, client_id) do
     Registry.lookup(
       registry_mod(subscription),
-      {:cursor_manager, subscription, client_id}
+      client_id
     )
   end
 end
