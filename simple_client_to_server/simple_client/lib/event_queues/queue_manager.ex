@@ -1,4 +1,4 @@
-defmodule EventCursors.CursorManager do
+defmodule EventQueues.QueueManager do
   @moduledoc """
   Tracks the ack'd and unack'd events for a subscription, provides events when asked.
   """
@@ -58,11 +58,11 @@ defmodule EventCursors.CursorManager do
   end
 
   @doc """
-  Ask relevant, running cursor managers to identify themselves if they are able to emit events.
+  Ask queues to identify themselves if they are able to emit events.
 
   With this list we can ask for events.
   """
-  def ping_active_cursor_managers(subscription) do
+  def ping_queues(subscription) do
     subscription
     |> registry_mod()
     |> Registry.select([{{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$2", :"$3"}}]}])

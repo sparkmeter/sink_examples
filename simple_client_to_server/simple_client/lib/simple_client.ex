@@ -53,7 +53,7 @@ defmodule SimpleClient do
 
   def get_next_event() do
     OutgoingEventSubscription
-    |> EventCursors.take("self", 1)
+    |> EventQueues.take("self", 1)
     |> List.last()
   end
 

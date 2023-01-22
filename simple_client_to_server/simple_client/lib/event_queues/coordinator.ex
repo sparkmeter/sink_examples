@@ -1,30 +1,30 @@
-defmodule EventCursors.Coordinator do
+defmodule EventQueues.Coordinator do
   @moduledoc """
-  Coordinates starting and stopping CursorsManagers for a subscription and client_id
+  Coordinates starting and stopping QueueManagers for a subscription and client_id
   """
   use GenServer
   require Logger
-  alias EventCursors.CursorManager
+  alias EventQueues.QueueManager
 
   defmodule State do
     @moduledoc false
 
-    defstruct [:storage_mod, :subscription, :cursor_managers]
+    defstruct [:storage_mod, :subscription, :queue_managers]
 
     def init(storage_mod: storage_mod, subscription: subscription) do
       %State{
         storage_mod: storage_mod,
         subscription: subscription,
-        cursor_managers: %{}
+        queue_managers: %{}
       }
     end
 
     def add_client(state, client_id, client_instance_id, pid, ref) do
       %State{
         state
-        | cursor_managers:
+        | queue_managers:
             Map.put(
-              state.cursor_managers,
+              state.queue_managers,
               client_id,
               {client_instance_id, pid, ref}
             )
@@ -32,22 +32,22 @@ defmodule EventCursors.Coordinator do
     end
 
     def remove_client(state, client_id) do
-      %State{state | cursor_managers: Map.delete(state.cursor_managers, client_id)}
+      %State{state | queue_managers: Map.delete(state.queue_managers, client_id)}
     end
 
     def registered?(state, client_id, _client_instance_id) do
       # todo: handle mismatched client_id
       # should we use the registry?
-      Map.has_key?(state.cursor_managers, client_id)
+      Map.has_key?(state.queue_managers, client_id)
     end
 
     def get(state, client_id) do
-      state.cursor_managers[client_id]
+      state.queue_managers[client_id]
     end
 
     def down(state, ref) do
       {client_id, _, _} =
-        state.cursor_managers
+        state.queue_managers
         |> Map.values()
         |> Enum.find(fn {_client_id, _pid, r} -> r == ref end)
 
@@ -63,10 +63,10 @@ defmodule EventCursors.Coordinator do
   end
 
   @doc """
-  Starts a CursorManager for the subscription and client if no other process is running for that client.
+  Starts a QueueManager for the subscription and client if no other process is running for that client.
 
   - Ensures no other process is running for the client_id
-  - Starts a CursorManager under the dynamic supervisor
+  - Starts a QueueManager under the dynamic supervisor
   """
   def add_client(subscription, client_id, client_instance_id) do
     name = Module.concat(subscription, Coordinator)
@@ -74,7 +74,7 @@ defmodule EventCursors.Coordinator do
   end
 
   @doc """
-  Stops a CursorManager for the subscription and client if one is running
+  Stops a QueueManager for the subscription and client if one is running
   """
   def remove_client(subscription, client_id) do
     name = Module.concat(subscription, Coordinator)
@@ -96,7 +96,7 @@ defmodule EventCursors.Coordinator do
       {:ok, pid} =
         DynamicSupervisor.start_child(
           dynamic_sup_mod,
-          {CursorManager,
+          {QueueManager,
            [
              storage_mod: state.storage_mod,
              subscription: state.subscription,

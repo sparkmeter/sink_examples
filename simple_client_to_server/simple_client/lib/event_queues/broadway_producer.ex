@@ -1,4 +1,4 @@
-defmodule SimpleClient.OutgoingEventProducer do
+defmodule EventQueues.BroadwayProducer do
   @moduledoc """
   Produces events from clients
 
@@ -16,7 +16,7 @@ defmodule SimpleClient.OutgoingEventProducer do
   could use pids instead of client_id, but the client_id is more useful to humans and for logger statements
   """
   use GenStage
-  alias EventCursors.CursorManager
+  alias EventQueues.QueueManager
 
   @first_tick_after :timer.seconds(1)
   @tick_interval :timer.seconds(5)
@@ -61,7 +61,7 @@ defmodule SimpleClient.OutgoingEventProducer do
     state = State.init(subscription)
     schedule_tick(@first_tick_after)
 
-    :ok = EventCursors.CursorManager.ping_active_cursor_managers(subscription)
+    :ok = EventQueues.QueueManager.ping_queues(subscription)
 
     {:producer, state}
   end
@@ -100,7 +100,7 @@ defmodule SimpleClient.OutgoingEventProducer do
     {client_id_queue, events, remaining_demand} = get_events(subscription, client_ids, demand)
 
     if :queue.is_empty(client_id_queue) do
-      :ok = EventCursors.CursorManager.ping_active_cursor_managers(subscription)
+      :ok = EventQueues.QueueManager.ping_queues(subscription)
     end
 
     {events, client_id_queue, remaining_demand}
@@ -117,7 +117,7 @@ defmodule SimpleClient.OutgoingEventProducer do
         nil
       else
         {:value, client_id} = result
-        events = CursorManager.take(subscription, client_id, acc_demand)
+        events = QueueManager.take(subscription, client_id, acc_demand)
 
         # todo: what if length(events) > demand? raise?
         r = {q, acc_events ++ events, acc_demand - length(events)}

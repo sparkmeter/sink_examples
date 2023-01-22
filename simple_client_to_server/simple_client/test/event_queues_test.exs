@@ -1,4 +1,4 @@
-defmodule EventCursorsTest do
+defmodule EventQueuesTest do
   use ExUnit.Case, async: false
 
   @client_id "client1"
@@ -6,14 +6,14 @@ defmodule EventCursorsTest do
 
   test "only one cursor manager can exist for a client_id at a time" do
     {:ok, _pid} =
-      start_supervised({EventCursors.Supervisor, storage: __MODULE__, subscription: __MODULE__})
+      start_supervised({EventQueues.Supervisor, storage: __MODULE__, subscription: __MODULE__})
 
     Process.whereis(EventCursorsTest.Coordinator)
 
-    assert :ok == EventCursors.add_client(__MODULE__, @client_id, @client_instance_id)
+    assert :ok == EventQueues.add_client(__MODULE__, @client_id, @client_instance_id)
 
     assert {:error, :in_use} ==
-             EventCursors.add_client(__MODULE__, @client_id, @client_instance_id)
+             EventQueues.add_client(__MODULE__, @client_id, @client_instance_id)
   end
 
   def get_earliest_unsent_sequence_number(_, _, _), do: nil

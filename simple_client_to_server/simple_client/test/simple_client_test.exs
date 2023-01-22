@@ -33,7 +33,7 @@ defmodule SimpleClientTest do
     setup do
       {:ok, _} =
         start_supervised(
-          {EventCursors.Supervisor,
+          {EventQueues.Supervisor,
            storage: SimpleClient.SinkSubscriptionStorage, subscription: OutgoingEventSubscription}
         )
 
@@ -41,13 +41,13 @@ defmodule SimpleClientTest do
     end
 
     test "is empty with no events" do
-      :ok = EventCursors.add_client(OutgoingEventSubscription, @client_id, @client_instance_id)
+      :ok = EventQueues.add_client(OutgoingEventSubscription, @client_id, @client_instance_id)
 
       assert nil == SimpleClient.get_next_event()
     end
 
     test "returns the next event when events are present" do
-      :ok = EventCursors.add_client(OutgoingEventSubscription, @client_id, @client_instance_id)
+      :ok = EventQueues.add_client(OutgoingEventSubscription, @client_id, @client_instance_id)
 
       SimpleClient.log_sensor_reading("kitchen", %{temperature: 70, humidity: 40})
       SimpleClient.log_sensor_reading("kitchen", %{temperature: 71, humidity: 41})
@@ -70,7 +70,7 @@ defmodule SimpleClientTest do
       bogus_seq_number = 1
       :ok = SimpleClient.ack_event({1, "kitchen", 1}, bogus_seq_number)
 
-      :ok = EventCursors.add_client(OutgoingEventSubscription, @client_id, @client_instance_id)
+      :ok = EventQueues.add_client(OutgoingEventSubscription, @client_id, @client_instance_id)
 
       assert nil == SimpleClient.get_next_event()
     end
@@ -81,7 +81,7 @@ defmodule SimpleClientTest do
       bogus_seq_number = 1
       :ok = SimpleClient.nack_event({1, "kitchen", 1}, bogus_seq_number)
 
-      :ok = EventCursors.add_client(OutgoingEventSubscription, @client_id, @client_instance_id)
+      :ok = EventQueues.add_client(OutgoingEventSubscription, @client_id, @client_instance_id)
 
       next_event = SimpleClient.get_next_event()
       assert nil != next_event
@@ -92,7 +92,7 @@ defmodule SimpleClientTest do
     end
   end
 
-  describe "broadway based processor and cursor producer" do
+  describe "broadway based processor and event queue producer" do
     setup do
       :ok
     end
@@ -102,17 +102,14 @@ defmodule SimpleClientTest do
 
       {:ok, _} =
         start_supervised(
-          {EventCursors.Supervisor,
+          {EventQueues.Supervisor,
            storage: SimpleClient.SinkSubscriptionStorage, subscription: OutgoingEventSubscription}
         )
 
       {:ok, _} =
-        start_supervised(
-          {SimpleClient.OutgoingEventPoller,
-           producer_module: SimpleClient.OutgoingEventProducer, connection_module: __MODULE__}
-        )
+        start_supervised({SimpleClient.OutgoingEventPoller, connection_module: __MODULE__})
 
-      :ok = EventCursors.add_client(OutgoingEventSubscription, @client_id, @client_instance_id)
+      :ok = EventQueues.add_client(OutgoingEventSubscription, @client_id, @client_instance_id)
 
       :timer.sleep(8000)
     end

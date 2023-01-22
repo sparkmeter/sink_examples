@@ -34,16 +34,14 @@ defmodule SimpleClient.Application do
 
   defp sink_client(_) do
     [
-      {EventCursors.Supervisor,
+      {EventQueues.Supervisor,
        storage: SimpleClient.SinkSubscriptionStorage, subscription: OutgoingEventSubscription},
       {Sink.Connection.Client,
        port: SinkConfig.port(),
        host: SinkConfig.host(),
        ssl_opts: SinkConfig.ssl_opts(),
        handler: SinkHandler},
-      {OutgoingEventPoller,
-       producer_module: SimpleClient.OutgoingEventProducer,
-       connection_module: Sink.Connection.Client}
+      {OutgoingEventPoller, connection_module: Sink.Connection.Client}
     ]
   end
 end

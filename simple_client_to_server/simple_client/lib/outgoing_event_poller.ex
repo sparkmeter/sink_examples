@@ -5,11 +5,12 @@ defmodule SimpleClient.OutgoingEventPoller do
   use Broadway
   require Logger
 
+  @default_producer_module EventQueues.BroadwayProducer
   @subscription SimpleClient.OutgoingEventSubscription
 
   @spec start_link(list(keyword())) :: :ignore | {:error, any()} | {:ok, pid()}
   def start_link(opts) do
-    producer_mod = Keyword.fetch!(opts, :producer_module)
+    producer_mod = Keyword.get(opts, :producer_module, @default_producer_module)
     connection_mod = Keyword.fetch!(opts, :connection_module)
 
     Broadway.start_link(__MODULE__,
