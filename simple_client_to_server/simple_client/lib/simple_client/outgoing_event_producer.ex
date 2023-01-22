@@ -83,8 +83,6 @@ defmodule SimpleClient.OutgoingEventProducer do
 
   @impl true
   def handle_info(:tick, state) do
-    IO.puts("tick")
-
     {events, client_id_queue, remaining_demand} =
       flush(state.subscription, state.client_ids_with_events, state.pending_demand)
 
@@ -94,7 +92,6 @@ defmodule SimpleClient.OutgoingEventProducer do
   end
 
   def handle_info({:pong, client_id}, state) do
-    IO.puts("ponged")
     # todo: maybe emit events if we have pending demand
     {:noreply, [], State.add_client_id(state, client_id)}
   end
@@ -122,15 +119,9 @@ defmodule SimpleClient.OutgoingEventProducer do
         {:value, client_id} = result
         events = CursorManager.take(subscription, client_id, acc_demand)
 
-        if length(events) == demand do
-          # we might have more events, add client_id back to the end of the queue
-          r = {:queue.in(client_id, q), acc_events ++ events, 0}
-          {r, r}
-        else
-          # todo: what if length(events) > demand? raise?
-          r = {q, acc_events ++ events, acc_demand - length(events)}
-          {r, r}
-        end
+        # todo: what if length(events) > demand? raise?
+        r = {q, acc_events ++ events, acc_demand - length(events)}
+        {r, r}
       end
     end)
     |> Enum.to_list()

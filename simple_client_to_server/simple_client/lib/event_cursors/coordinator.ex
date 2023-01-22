@@ -31,20 +31,27 @@ defmodule EventCursors.Coordinator do
       }
     end
 
+    def remove_client(state, client_id) do
+      %State{state | cursor_managers: Map.delete(state.cursor_managers, client_id)}
+    end
+
     def registered?(state, client_id, _client_instance_id) do
       # todo: handle mismatched client_id
       # should we use the registry?
       Map.has_key?(state.cursor_managers, client_id)
     end
 
+    def get(state, client_id) do
+      state.cursor_managers[client_id]
+    end
+
     def down(state, ref) do
-      client_id =
+      {client_id, _, _} =
         state.cursor_managers
         |> Map.values()
-        |> Enum.find(fn {_client_id, {_, _pid, r}} -> r == ref end)
+        |> Enum.find(fn {_client_id, _pid, r} -> r == ref end)
 
-      {:ok, %State{state | cursor_managers: Map.delete(state.cursor_managers, client_id)},
-       client_id}
+      {:ok, State.remove_client(state, client_id), client_id}
     end
   end
 
@@ -64,6 +71,14 @@ defmodule EventCursors.Coordinator do
   def add_client(subscription, client_id, client_instance_id) do
     name = Module.concat(subscription, Coordinator)
     GenServer.call(name, {:add_client, client_id, client_instance_id})
+  end
+
+  @doc """
+  Stops a CursorManager for the subscription and client if one is running
+  """
+  def remove_client(subscription, client_id) do
+    name = Module.concat(subscription, Coordinator)
+    GenServer.call(name, {:remove_client, client_id})
   end
 
   @impl true
@@ -98,11 +113,21 @@ defmodule EventCursors.Coordinator do
     end
   end
 
+  def handle_call({:remove_client, client_id}, _from, state) do
+    dynamic_sup_mod = Module.concat(state.subscription, DynamicSupervisor)
+
+    with {_client_id, pid, _ref} <- State.get(state, client_id) do
+      _ = DynamicSupervisor.terminate_child(dynamic_sup_mod, pid)
+    end
+
+    {:reply, :ok, state}
+  end
+
   @impl true
   def handle_info({:DOWN, ref, :process, _pid, reason}, state) do
     {:ok, new_state, client_id} = State.down(state, ref)
     # todo: remove client from state
-    Logger.debug("client #{client_id} terminating for reason #{reason}")
+    Logger.debug("client '#{client_id}' terminating for reason '#{reason}'")
     {:noreply, new_state}
   end
 

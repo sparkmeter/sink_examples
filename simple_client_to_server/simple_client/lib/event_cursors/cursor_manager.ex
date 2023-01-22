@@ -44,21 +44,25 @@ defmodule EventCursors.CursorManager do
     GenServer.start_link(__MODULE__, args)
   end
 
+  @doc """
+  Take _num events and advance the cursor
+  """
   def take(subscription, client_id, num) do
     case registry_lookup(subscription, client_id) do
       [{pid, _}] ->
         GenServer.call(pid, {:take, num})
+
+      _ ->
+        []
     end
   end
 
   @doc """
-  Ask relevant, running cursor managers to identify themselves.
+  Ask relevant, running cursor managers to identify themselves if they are able to emit events.
 
   With this list we can ask for events.
   """
   def ping_active_cursor_managers(subscription) do
-    IO.puts("pinged")
-
     subscription
     |> registry_mod()
     |> Registry.select([{{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$2", :"$3"}}]}])

@@ -2,8 +2,8 @@ defmodule SimpleClient.OutgoingEventPoller do
   @moduledoc """
 
   """
-
   use Broadway
+  require Logger
 
   @subscription SimpleClient.OutgoingEventSubscription
 
@@ -30,61 +30,13 @@ defmodule SimpleClient.OutgoingEventPoller do
   # def flush
 
   @impl true
-  def handle_message(:default, %{data: event} = message, context) do
-    IO.inspect("SimpleClient.OutgoingEventPoller - handling message")
-    ack_key = {event.event_type_id, event.key, event.offset}
+  def handle_message(:default, %{data: ground_event} = message, context) do
+    Logger.debug("Sending event type {#event.event_type_id} to the Sink server")
+    sink_event = SimpleClient.GroundEventLog.to_sink_event(ground_event)
+    ack_key = {sink_event.event_type_id, sink_event.key, sink_event.offset}
     # :ok = Connection.Client.publish(event, ack_key)
-    :ok = context.connection_module.publish(event, ack_key)
+    :ok = context.connection_module.publish(sink_event, ack_key)
 
     message
   end
-
-  # old stuff that can be deleted
-
-  #  @impl true
-  #  def init(_) do
-  #    schedule_tick(@first_tick_after)
-  #    {:ok, []}
-  #  end
-  #
-  #  @impl true
-  #  def handle_cast(:flush, state) do
-  #    _ = flush()
-  #    {:noreply, state}
-  #  end
-  #
-
-  #
-  #  @spec flush() :: :ok | :sending | :not_ready | :no_queued_events
-  #  defp flush do
-  #    with true <- Connection.Client.connected?(),
-  #         {:ok, []} <- Connection.ClientConnection.get_inflight(),
-  #         {:ok, []} = Connection.ClientConnection.get_received_nacks() do
-  #      SimpleClient.get_next_event()
-  #      |> case do
-  #        nil ->
-  #          :no_queued_events
-  #
-  #        event ->
-  #          ack_key = {event.event_type_id, event.key, event.offset}
-  #
-  #          :ok = Connection.Client.publish(event, ack_key)
-  #          :sending
-  #      end
-  #    end
-  #  else
-  #    _ -> :not_ready
-  #  catch
-  #    :error, {:badmatch, err} when err in [{:error, :closed}, {:error, :no_connection}] ->
-  #      :not_ready
-  #  end
-  #
-  #  defp schedule_tick(time) do
-  #    Process.send_after(self(), :tick, time)
-  #  end
-  #
-  #  defp jitter_interval(interval) do
-  #    variance = div(interval, 10)
-  #    interval + Enum.random(-variance..variance)
-  #  end
 end

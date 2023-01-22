@@ -114,7 +114,7 @@ defmodule SimpleClientTest do
 
       :ok = EventCursors.add_client(OutgoingEventSubscription, @client_id, @client_instance_id)
 
-      :timer.sleep(12000)
+      :timer.sleep(8000)
     end
   end
 

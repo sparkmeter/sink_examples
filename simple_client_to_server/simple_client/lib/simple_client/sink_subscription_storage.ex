@@ -27,9 +27,9 @@ defmodule SimpleClient.SinkSubscriptionStorage do
     new_seq_number =
       case events do
         [] ->
-          nil
+          last_seq_number
 
-        [_] ->
+        _ ->
           events
           |> List.last()
           |> Map.fetch!(:id)

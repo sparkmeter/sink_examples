@@ -41,7 +41,9 @@ defmodule SimpleClient.Application do
        host: SinkConfig.host(),
        ssl_opts: SinkConfig.ssl_opts(),
        handler: SinkHandler},
-      OutgoingEventPoller
+      {OutgoingEventPoller,
+       producer_module: SimpleClient.OutgoingEventProducer,
+       connection_module: Sink.Connection.Client}
     ]
   end
 end
