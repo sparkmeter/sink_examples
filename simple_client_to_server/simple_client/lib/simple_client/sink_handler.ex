@@ -19,7 +19,7 @@ defmodule SimpleClient.SinkHandler do
   def handle_connection_response(:connected) do
     Logger.info("Connected to known server via Sink")
 
-    EventQueues.add_client(OutgoingEventSubscription, "self", "self")
+    EventQueues.add_client(OutgoingEventSubscription, "self", 0)
 
     :ok
   end
@@ -30,7 +30,7 @@ defmodule SimpleClient.SinkHandler do
 
     :ok = SinkConfig.set_server_instance_id(instance_id)
 
-    EventQueues.add_client(OutgoingEventSubscription, "self", "self")
+    EventQueues.add_client(OutgoingEventSubscription, "self", 0)
   end
 
   def handle_connection_response(response) do

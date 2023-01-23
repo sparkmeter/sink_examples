@@ -6,7 +6,7 @@ defmodule SimpleClientTest do
   doctest SimpleClient
 
   @client_id "self"
-  @client_instance_id "123"
+  @client_instance_id 0
 
   setup do
     # Explicitly get a connection before each test
@@ -47,10 +47,10 @@ defmodule SimpleClientTest do
     end
 
     test "returns the next event when events are present" do
-      :ok = EventQueues.add_client(OutgoingEventSubscription, @client_id, @client_instance_id)
-
       SimpleClient.log_sensor_reading("kitchen", %{temperature: 70, humidity: 40})
       SimpleClient.log_sensor_reading("kitchen", %{temperature: 71, humidity: 41})
+
+      :ok = EventQueues.add_client(OutgoingEventSubscription, @client_id, @client_instance_id)
 
       next_event = SimpleClient.get_next_event()
       assert nil != next_event
@@ -110,8 +110,6 @@ defmodule SimpleClientTest do
         start_supervised({SimpleClient.OutgoingEventPoller, connection_module: __MODULE__})
 
       :ok = EventQueues.add_client(OutgoingEventSubscription, @client_id, @client_instance_id)
-
-      :timer.sleep(8000)
     end
   end
 

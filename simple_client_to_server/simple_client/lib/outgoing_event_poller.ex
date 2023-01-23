@@ -32,7 +32,7 @@ defmodule SimpleClient.OutgoingEventPoller do
 
   @impl true
   def handle_message(:default, %{data: ground_event} = message, context) do
-    Logger.debug("Sending event type {#event.event_type_id} to the Sink server")
+    Logger.debug("Sending event type #{ground_event.event_type_id} to the Sink server")
     sink_event = SimpleClient.GroundEventLog.to_sink_event(ground_event)
     ack_key = {sink_event.event_type_id, sink_event.key, sink_event.offset}
     # :ok = Connection.Client.publish(event, ack_key)

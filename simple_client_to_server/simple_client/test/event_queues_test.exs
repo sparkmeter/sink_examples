@@ -16,5 +16,5 @@ defmodule EventQueuesTest do
              EventQueues.add_client(__MODULE__, @client_id, @client_instance_id)
   end
 
-  def get_earliest_unsent_sequence_number(_, _, _), do: nil
+  def get_last_acked_event(_, _, _), do: nil
 end
