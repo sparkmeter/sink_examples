@@ -32,8 +32,8 @@ defmodule SimpleClient.MixProject do
       {:broadway, "~> 1.0.5"},
       {:ecto_sql, "~> 3.8.2"},
       {:ecto_sqlite3, "~> 0.7.2"},
+      {:event_queues, path: "../event_queues"},
       {:exqlite, "~> 0.10.3"},
-      {:nimble_options, "~> 0.5.2"},
       {:sink, github: "sparkmeter/sink"}
       # {:sink, github: "spark_meter/sink"}
       # {:dep_from_hexpm, "~> 0.3.0"},
