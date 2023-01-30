@@ -3,6 +3,7 @@ defmodule SimpleServer.MixProject do
 
   def project do
     [
+      aliases: aliases(),
       app: :simple_server,
       version: "0.1.0",
       elixir: "~> 1.12",
@@ -16,6 +17,12 @@ defmodule SimpleServer.MixProject do
     [
       mod: {SimpleServer.Application, []},
       extra_applications: [:logger]
+    ]
+  end
+
+  def aliases do
+    [
+      "ecto.reset": ["ecto.drop", "ecto.create", "ecto.migrate"]
     ]
   end
 
